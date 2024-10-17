@@ -1,0 +1,98 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Stili personalizzati globali */
+body {
+  @apply bg-cream text-navy;
+  font-family: 'Arial', sans-serif;
+}
+
+.container {
+  @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  @apply font-bold text-navy;
+}
+
+/* Stile unificato per navbar e footer */
+.nav-footer-common {
+  @apply bg-navy text-white py-4;
+}
+
+/* Stile unificato per i link nella navbar e nel footer */
+.nav-footer-link {
+  @apply text-white hover:text-red transition duration-300 ease-in-out font-medium px-3 py-2;
+}
+
+/* Stile unificato per i bottoni */
+.btn {
+  @apply px-6 py-3 rounded-md transition duration-300 ease-in-out text-lg font-semibold text-white;
+}
+
+.btn-primary {
+  @apply bg-red hover:bg-opacity-90;
+}
+
+.btn-secondary {
+  @apply bg-navy hover:bg-opacity-90;
+}
+
+.card {
+  @apply bg-white shadow-lg rounded-lg overflow-hidden p-6 transition duration-300 ease-in-out hover:shadow-xl;
+}
+
+/* Stile per il layout simile all'immagine */
+.hero-section {
+  @apply bg-cream py-24;
+}
+
+.hero-content {
+  @apply text-center max-w-4xl mx-auto;
+}
+
+.hero-title {
+  @apply text-5xl md:text-7xl font-bold text-navy mb-6;
+}
+
+.hero-subtitle {
+  @apply text-xl md:text-2xl text-navy mb-12 font-light;
+}
+
+.section {
+  @apply py-20;
+}
+
+.section-title {
+  @apply text-3xl md:text-4xl font-bold text-navy mb-12 text-center;
+}
+
+.feature-grid {
+  @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12 my-16;
+}
+
+.feature-item {
+  @apply flex flex-col items-center text-center;
+}
+
+.feature-icon {
+  @apply w-20 h-20 bg-red text-white rounded-full flex items-center justify-center mb-6 text-3xl;
+}
+
+.feature-title {
+  @apply text-xl font-semibold mb-3;
+}
+
+.feature-description {
+  @apply text-gray-600;
+}
+
+/* Footer specifico */
+.footer-content {
+  @apply flex flex-wrap justify-between items-center;
+}
+
+.footer-links {
+  @apply flex space-x-6;
+}
