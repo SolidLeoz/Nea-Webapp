@@ -1,15 +1,17 @@
 import { useState } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
-import { login as loginApi, setToken } from '../utils/auth';
+import { register, setToken } from '../utils/auth';
 import { useAuth } from '../context/AuthContext';
 
-export default function Login() {
+export default function Register() {
   const router = useRouter();
   const { login } = useAuth();
   const [formData, setFormData] = useState({
+    name: '',
     email: '',
-    password: ''
+    password: '',
+    confirmPassword: ''
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -23,13 +25,40 @@ export default function Login() {
     if (error) setError('');
   };
 
+  const validateForm = () => {
+    if (!formData.name || !formData.email || !formData.password || !formData.confirmPassword) {
+      setError('Tutti i campi sono obbligatori');
+      return false;
+    }
+    if (formData.name.length < 2) {
+      setError('Il nome deve essere di almeno 2 caratteri');
+      return false;
+    }
+    if (formData.password.length < 6) {
+      setError('La password deve essere di almeno 6 caratteri');
+      return false;
+    }
+    if (formData.password !== formData.confirmPassword) {
+      setError('Le password non coincidono');
+      return false;
+    }
+    if (!/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/.test(formData.email)) {
+      setError('Inserisci un indirizzo email valido');
+      return false;
+    }
+    return true;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    setLoading(true);
 
+    if (!validateForm()) return;
+
+    setLoading(true);
     try {
-      const data = await loginApi({
+      const data = await register({
+        name: formData.name,
         email: formData.email,
         password: formData.password
       });
@@ -43,7 +72,7 @@ export default function Login() {
       // Reindirizza alla dashboard
       router.push('/dashboard');
     } catch (err) {
-      setError(err.message || 'Errore durante il login');
+      setError(err.message);
     } finally {
       setLoading(false);
     }
@@ -53,12 +82,12 @@ export default function Login() {
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-          Accedi al tuo account
+          Crea il tuo account
         </h2>
         <p className="mt-2 text-center text-sm text-gray-600">
           Oppure{' '}
-          <Link href="/register" className="font-medium text-blue-600 hover:text-blue-500">
-            registrati se non hai un account
+          <Link href="/login" className="font-medium text-blue-600 hover:text-blue-500">
+            accedi se hai già un account
           </Link>
         </p>
       </div>
@@ -72,6 +101,24 @@ export default function Login() {
           )}
 
           <form className="space-y-6" onSubmit={handleSubmit}>
+            <div>
+              <label htmlFor="name" className="block text-sm font-medium text-gray-700">
+                Nome completo
+              </label>
+              <div className="mt-1">
+                <input
+                  id="name"
+                  name="name"
+                  type="text"
+                  required
+                  value={formData.name}
+                  onChange={handleChange}
+                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  placeholder="Mario Rossi"
+                />
+              </div>
+            </div>
+
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700">
                 Indirizzo email
@@ -100,32 +147,32 @@ export default function Login() {
                   id="password"
                   name="password"
                   type="password"
-                  autoComplete="current-password"
+                  autoComplete="new-password"
                   required
                   value={formData.password}
                   onChange={handleChange}
                   className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  placeholder="Minimo 6 caratteri"
                 />
               </div>
             </div>
 
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
+            <div>
+              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
+                Conferma password
+              </label>
+              <div className="mt-1">
                 <input
-                  id="remember_me"
-                  name="remember_me"
-                  type="checkbox"
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  type="password"
+                  autoComplete="new-password"
+                  required
+                  value={formData.confirmPassword}
+                  onChange={handleChange}
+                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  placeholder="Ripeti la password"
                 />
-                <label htmlFor="remember_me" className="ml-2 block text-sm text-gray-900">
-                  Ricordami
-                </label>
-              </div>
-
-              <div className="text-sm">
-                <Link href="/forgot-password" className="font-medium text-blue-600 hover:text-blue-500">
-                  Password dimenticata?
-                </Link>
               </div>
             </div>
 
@@ -137,7 +184,7 @@ export default function Login() {
                   loading ? 'opacity-50 cursor-not-allowed' : ''
                 }`}
               >
-                {loading ? 'Accesso in corso...' : 'Accedi'}
+                {loading ? 'Registrazione in corso...' : 'Registrati'}
               </button>
             </div>
           </form>

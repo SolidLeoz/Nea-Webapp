@@ -9,11 +9,23 @@ const userSchema = new mongoose.Schema({
   email: {
     type: String,
     required: true,
-    unique: true
+    unique: true,
+    trim: true,
+    lowercase: true,
+    match: [/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/, 'Inserisci un indirizzo email valido']
+  },
+  password: {
+    type: String,
+    required: function() {
+      return !this.googleId; // Password richiesta solo per registrazione locale
+    },
+    minlength: [6, 'La password deve essere di almeno 6 caratteri']
   },
   name: {
     type: String,
-    required: true
+    required: true,
+    trim: true,
+    minlength: [2, 'Il nome deve essere di almeno 2 caratteri']
   },
   role: {
     type: String,
@@ -25,6 +37,10 @@ const userSchema = new mongoose.Schema({
     default: Date.now
   }
 });
+
+// Indice per ottimizzare le query
+userSchema.index({ email: 1 });
+userSchema.index({ googleId: 1 });
 
 const User = mongoose.model('User', userSchema);
 

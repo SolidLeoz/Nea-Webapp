@@ -69,7 +69,21 @@ MONGODB_URI=your_mongodb_uri
 GOOGLE_CLIENT_ID=your_google_client_id
 GOOGLE_CLIENT_SECRET=your_google_client_secret
 JWT_SECRET=your_jwt_secret
+BACKEND_URL=http://localhost:5000        # Importante per Google OAuth
+FRONTEND_URL=http://localhost:3000       # Per il reindirizzamento post-login
 \`\`\`
+
+### Google OAuth Setup
+1. Vai alla Google Cloud Console
+2. Crea un nuovo progetto o seleziona uno esistente
+3. Abilita Google+ API
+4. Configura le credenziali OAuth:
+   - Tipo: Applicazione Web
+   - Nome: Nea Web Agency
+   - URI di reindirizzamento autorizzati: `http://localhost:5000/api/auth/google/callback`
+   - Origini JavaScript autorizzate: 
+     * `http://localhost:3000`
+     * `http://localhost:5000`
 
 ### Frontend
 Crea un file \`.env\` nella cartella frontend con:
@@ -123,6 +137,7 @@ L'applicazione sarà disponibile su:
 ### Autenticazione
 - `POST /api/auth/login` - Login utente
 - `POST /api/auth/google` - Login con Google
+- `GET /api/auth/google/callback` - Callback Google OAuth
 - `POST /api/auth/logout` - Logout utente
 
 ### Utenti

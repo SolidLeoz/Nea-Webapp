@@ -1,24 +1,25 @@
-/**
- * Componente principale dell'applicazione Next.js
- * Questo file è il punto di ingresso dell'applicazione e:
- * - Gestisce il layout globale
- * - Importa gli stili globali
- * - Avvolge ogni pagina dell'applicazione
- * - Gestisce lo stato globale e i provider
- */
-
-// Importa gli stili globali dell'applicazione
 import '../styles/globals.css'
+import { AuthProvider } from '../context/AuthContext'
+import Layout from '../components/Layout'
+import Navbar from '../components/Navbar'
+import Footer from '../components/Footer'
 
 /**
- * MyApp - Componente root dell'applicazione
- * @param {Object} props - Props del componente
- * @param {Component} props.Component - Il componente della pagina corrente
- * @param {Object} props.pageProps - Props da passare al componente della pagina
- * @returns {JSX.Element} L'applicazione renderizzata con il componente della pagina corrente
+ * Componente root dell'applicazione
+ * Gestisce il layout globale e i provider
  */
 function MyApp({ Component, pageProps }) {
-  return <Component {...pageProps} />
+  return (
+    <AuthProvider>
+      <div className="flex flex-col min-h-screen">
+        <Navbar />
+        <main className="flex-grow">
+          <Component {...pageProps} />
+        </main>
+        <Footer />
+      </div>
+    </AuthProvider>
+  )
 }
 
 export default MyApp

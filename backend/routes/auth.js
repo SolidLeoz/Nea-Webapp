@@ -27,7 +27,7 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
   passport.use(new GoogleStrategy({
     clientID: process.env.GOOGLE_CLIENT_ID,
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    callbackURL: `${process.env.BACKEND_URL}/api/auth/google/callback`
+    callbackURL: process.env.GOOGLE_CALLBACK_URL
   },
   async function(accessToken, refreshToken, profile, cb) {
     try {
@@ -37,7 +37,7 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
           googleId: profile.id,
           email: profile.emails[0].value,
           name: profile.displayName,
-          role: 'user' // Imposta il ruolo predefinito come 'user'
+          role: 'user'
         });
         await user.save();
       }
@@ -50,6 +50,19 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
   console.warn('Credenziali Google mancanti. L\'autenticazione Google non sarà disponibile.');
 }
 
+// Endpoint per ottenere i dati dell'utente corrente
+router.get('/me', verifyToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.userId).select('-password');
+    if (!user) {
+      return res.status(404).json({ message: 'Utente non trovato' });
+    }
+    res.json(user);
+  } catch (error) {
+    res.status(500).json({ message: 'Errore nel recupero dei dati utente' });
+  }
+});
+
 // Rotta per il login locale
 router.post('/login', async (req, res) => {
   try {
@@ -61,7 +74,15 @@ router.post('/login', async (req, res) => {
     }
 
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
-    res.json({ token, user: { id: user._id, name: user.name, email: user.email, role: user.role } });
+    res.json({ 
+      token, 
+      user: { 
+        id: user._id, 
+        name: user.name, 
+        email: user.email, 
+        role: user.role 
+      } 
+    });
   } catch (error) {
     res.status(500).json({ message: 'Errore durante il login', error: error.message });
   }
@@ -88,7 +109,15 @@ router.post('/register', async (req, res) => {
     await user.save();
 
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
-    res.status(201).json({ token, user: { id: user._id, name: user.name, email: user.email, role: user.role } });
+    res.status(201).json({ 
+      token, 
+      user: { 
+        id: user._id, 
+        name: user.name, 
+        email: user.email, 
+        role: user.role 
+      } 
+    });
   } catch (error) {
     res.status(500).json({ message: 'Errore durante la registrazione', error: error.message });
   }
@@ -113,7 +142,7 @@ router.get('/google/callback',
   },
   function(req, res) {
     const token = jwt.sign({ id: req.user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
-    res.redirect(`${process.env.FRONTEND_URL}/dashboard?token=${token}`);
+    res.redirect(`${process.env.CORS_ORIGIN}/dashboard?token=${token}`);
   });
 
 // Endpoint per verificare il ruolo admin
@@ -127,19 +156,6 @@ router.get('/verify-admin', verifyToken, async (req, res) => {
     res.json({ isAdmin });
   } catch (error) {
     res.status(500).json({ message: 'Errore durante la verifica del ruolo admin' });
-  }
-});
-
-// Nuovo endpoint di debug per verificare il ruolo dell'utente
-router.get('/debug-user-role', verifyToken, async (req, res) => {
-  try {
-    const user = await User.findById(req.userId);
-    if (!user) {
-      return res.status(404).json({ message: 'Utente non trovato' });
-    }
-    res.json({ userId: user._id, name: user.name, email: user.email, role: user.role });
-  } catch (error) {
-    res.status(500).json({ message: 'Errore durante il recupero delle informazioni dell\'utente', error: error.message });
   }
 });
 
