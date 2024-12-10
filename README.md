@@ -116,6 +116,7 @@ L'applicazione sarà disponibile su:
   - Login con Google OAuth
   - Gestione sessioni JWT
   - Protezione delle route
+  - Ruoli utente (admin e utente standard)
 
 - **Blog**
   - Creazione e gestione post
@@ -131,6 +132,13 @@ L'applicazione sarà disponibile su:
   - Gestione contenuti
   - Gestione utenti
   - Analytics
+  - Gestione completa appuntamenti
+
+- **Dashboard Utente**
+  - Visualizzazione personalizzata degli appuntamenti
+  - Interfaccia adattiva basata sul ruolo:
+    * Admin: gestione completa di utenti, appuntamenti e post
+    * Utente standard: visualizzazione dei propri appuntamenti
 
 ## 🔗 API Endpoints
 
@@ -141,21 +149,24 @@ L'applicazione sarà disponibile su:
 - `POST /api/auth/logout` - Logout utente
 
 ### Utenti
-- `GET /api/users` - Lista utenti
+- `GET /api/users` - Lista utenti (admin)
 - `GET /api/users/:id` - Dettaglio utente
 - `PUT /api/users/:id` - Aggiorna utente
 
 ### Post
 - `GET /api/posts` - Lista post
-- `POST /api/posts` - Crea nuovo post
+- `POST /api/posts` - Crea nuovo post (admin)
 - `GET /api/posts/:id` - Dettaglio post
-- `PUT /api/posts/:id` - Aggiorna post
-- `DELETE /api/posts/:id` - Elimina post
+- `PUT /api/posts/:id` - Aggiorna post (admin)
+- `DELETE /api/posts/:id` - Elimina post (admin)
 
 ### Appuntamenti
-- `GET /api/appointments` - Lista appuntamenti
+- `GET /api/appointments` - Lista tutti gli appuntamenti (admin)
+- `GET /api/appointments/my` - Lista appuntamenti personali (utente)
 - `POST /api/appointments` - Crea appuntamento
-- `PUT /api/appointments/:id` - Aggiorna appuntamento
+- `PUT /api/appointments/:id` - Aggiorna appuntamento (admin)
+- `PATCH /api/appointments/:id/status` - Aggiorna stato appuntamento (admin)
+- `DELETE /api/appointments/:id` - Elimina appuntamento (admin)
 
 ## 👥 Contribuire
 

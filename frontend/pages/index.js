@@ -1,16 +1,32 @@
 import Layout from '../components/Layout'
 import Link from 'next/link'
+import { useAuth } from '../context/AuthContext'
 
 export default function Home() {
+  const { user } = useAuth()
+
   return (
     <Layout>
       <div className="container mx-auto px-6 py-12">
         <section className="text-center">
           <h1 className="text-4xl font-bold mb-4">Benvenuti nella nostra Web Agency</h1>
           <p className="text-xl mb-8">Soluzioni digitali innovative per far crescere il tuo business</p>
-          <Link href="/contatti" className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded">
-            Fissa un appuntamento
-          </Link>
+          <div className="space-x-4">
+            {user ? (
+              <Link href="/contatti" className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded">
+                Fissa un appuntamento
+              </Link>
+            ) : (
+              <>
+                <Link href="/register" className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded">
+                  Registrati
+                </Link>
+                <Link href="/contatti" className="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded">
+                  Fissa un appuntamento
+                </Link>
+              </>
+            )}
+          </div>
         </section>
 
         <section className="mt-16">

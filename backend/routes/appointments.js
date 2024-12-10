@@ -2,29 +2,51 @@ const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
 const Appointment = require('../models/Appointment');
+const { protect, isAdmin } = require('../middleware/authMiddleware');
 
-// Middleware per verificare il token JWT
-const authenticateToken = (req, res, next) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-
-  if (token == null) return res.sendStatus(401);
-
-  jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
-    if (err) return res.sendStatus(403);
-    req.user = user;
-    next();
-  });
-};
-
-// Ottieni tutti gli appuntamenti
-router.get('/', authenticateToken, async (req, res) => {
+// Ottieni tutti gli appuntamenti (solo admin)
+router.get('/', protect, isAdmin, async (req, res) => {
   try {
-    // Recupera gli appuntamenti dal database
-    const appointments = await Appointment.find()
-      .populate('userId', 'name email') // Include i dettagli dell'utente
-      .sort({ date: 1, time: 1 }); // Ordina per data e ora
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
 
+    // Costruzione query di filtro
+    const filter = {};
+    if (req.query.date) {
+      filter.date = new Date(req.query.date);
+    }
+    if (req.query.status) {
+      filter.status = req.query.status;
+    }
+
+    // Esegue query con filtri e paginazione
+    const appointments = await Appointment.find(filter)
+      .populate('userId', 'name email')
+      .skip(skip)
+      .limit(limit)
+      .sort({ date: 1, time: 1 });
+
+    // Conta totale documenti per paginazione
+    const total = await Appointment.countDocuments(filter);
+
+    res.json({
+      appointments,
+      currentPage: page,
+      totalPages: Math.ceil(total / limit),
+      totalAppointments: total
+    });
+  } catch (error) {
+    console.error('Errore nel recupero degli appuntamenti:', error);
+    res.status(500).json({ message: 'Errore nel recupero degli appuntamenti' });
+  }
+});
+
+// Ottieni gli appuntamenti dell'utente corrente
+router.get('/my', protect, async (req, res) => {
+  try {
+    const appointments = await Appointment.find({ userId: req.user.id })
+      .sort({ date: 1, time: 1 });
     res.json(appointments);
   } catch (error) {
     console.error('Errore nel recupero degli appuntamenti:', error);
@@ -33,17 +55,18 @@ router.get('/', authenticateToken, async (req, res) => {
 });
 
 // Crea un nuovo appuntamento
-router.post('/', authenticateToken, async (req, res) => {
+router.post('/', protect, async (req, res) => {
   try {
     const { date, time, service, notes } = req.body;
     
     // Crea un nuovo appuntamento
     const appointment = new Appointment({
-      userId: req.user.id, // ID dell'utente dal token JWT
+      userId: req.user.id,
       date,
       time,
       service,
-      notes
+      notes,
+      status: 'pending'
     });
 
     // Salva l'appuntamento nel database
@@ -56,8 +79,8 @@ router.post('/', authenticateToken, async (req, res) => {
   }
 });
 
-// Aggiorna lo stato di un appuntamento
-router.patch('/:id/status', authenticateToken, async (req, res) => {
+// Aggiorna lo stato di un appuntamento (solo admin)
+router.put('/:id/status', protect, isAdmin, async (req, res) => {
   try {
     const { status } = req.body;
     
@@ -71,8 +94,8 @@ router.patch('/:id/status', authenticateToken, async (req, res) => {
     const appointment = await Appointment.findByIdAndUpdate(
       req.params.id,
       { status },
-      { new: true } // Restituisce il documento aggiornato
-    );
+      { new: true }
+    ).populate('userId', 'name email');
 
     if (!appointment) {
       return res.status(404).json({ message: 'Appuntamento non trovato' });
@@ -85,8 +108,8 @@ router.patch('/:id/status', authenticateToken, async (req, res) => {
   }
 });
 
-// Elimina un appuntamento
-router.delete('/:id', authenticateToken, async (req, res) => {
+// Elimina un appuntamento (solo admin)
+router.delete('/:id', protect, isAdmin, async (req, res) => {
   try {
     const appointment = await Appointment.findByIdAndDelete(req.params.id);
     

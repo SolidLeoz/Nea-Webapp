@@ -21,6 +21,7 @@ const appointmentRoutes = require('./routes/appointments');
 const postRoutes = require('./routes/posts');
 const passport = require('passport');
 const session = require('express-session');
+const User = require('./models/User'); // Aggiunto import del modello User
 
 // Verifica delle credenziali Google necessarie per l'autenticazione OAuth
 if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
@@ -31,12 +32,24 @@ if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
 const app = express();
 
 /**
- * Configurazione dei middleware principali
- * - cors: Gestisce le richieste Cross-Origin
- * - express.json: Parsing del body delle richieste in formato JSON
+ * Configurazione CORS avanzata
+ * - origin: Permette richieste solo dal frontend
+ * - credentials: Abilita l'invio di cookie e headers di autenticazione
+ * - methods: Metodi HTTP permessi
+ * - allowedHeaders: Headers permessi nelle richieste
  */
-app.use(cors());
+const corsOptions = {
+  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  exposedHeaders: ['Content-Range', 'X-Content-Range']
+};
+app.use(cors(corsOptions));
+
+// Parsing del body delle richieste
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 /**
  * Configurazione della sessione utente
@@ -49,7 +62,11 @@ app.use(session({
   secret: process.env.SESSION_SECRET || 'your_session_secret',
   resave: false,
   saveUninitialized: false,
-  cookie: { secure: process.env.NODE_ENV === 'production' }
+  cookie: { 
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    maxAge: 24 * 60 * 60 * 1000 // 24 ore
+  }
 }));
 
 /**
@@ -71,10 +88,22 @@ passport.serializeUser((user, done) => {
  * Gestione della deserializzazione dell'utente
  * Recupera i dati dell'utente dal database usando l'ID salvato nella sessione
  */
-passport.deserializeUser((id, done) => {
-  // TODO: Implementare il recupero dell'utente dal database
-  done(null, { id: id });
+passport.deserializeUser(async (id, done) => {
+  try {
+    const user = await User.findById(id).select('-password');
+    done(null, user);
+  } catch (error) {
+    done(error, null);
+  }
 });
+
+// Middleware per loggare le richieste in sviluppo
+if (process.env.NODE_ENV !== 'production') {
+  app.use((req, res, next) => {
+    console.log(`${req.method} ${req.url}`);
+    next();
+  });
+}
 
 // Inizializza la connessione al database MongoDB
 connectDB();
@@ -102,7 +131,21 @@ app.get('/', (req, res) => {
  */
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  res.status(500).json({ message: 'Si è verificato un errore interno del server' });
+  
+  // Gestione errori specifici
+  if (err.name === 'UnauthorizedError') {
+    return res.status(401).json({ message: 'Token non valido o scaduto' });
+  }
+  
+  if (err.name === 'ValidationError') {
+    return res.status(400).json({ message: err.message });
+  }
+
+  // Errore generico del server
+  res.status(500).json({ 
+    message: 'Si è verificato un errore interno del server',
+    error: process.env.NODE_ENV === 'development' ? err.message : undefined
+  });
 });
 
 // Esporta l'app configurata per essere utilizzata in server.js

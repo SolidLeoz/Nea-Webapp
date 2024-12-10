@@ -3,12 +3,15 @@ import { useRouter } from 'next/router'
 import Layout from '../components/Layout'
 import withAuth from '../components/withAuth'
 import config from '../config'
+import { useAuth } from '../context/AuthContext'
 
 function Dashboard() {
   const [users, setUsers] = useState([])
   const [appointments, setAppointments] = useState([])
   const [posts, setPosts] = useState([])
   const router = useRouter()
+  const { user } = useAuth()
+  const isAdmin = user?.role === 'admin'
 
   // Funzione per formattare la data
   const formatDate = (dateString) => {
@@ -19,7 +22,7 @@ function Dashboard() {
   // Funzione per aggiornare lo stato di un appuntamento
   const updateAppointmentStatus = async (appointmentId, newStatus) => {
     const token = localStorage.getItem('token')
-    if (!token) return
+    if (!token || !isAdmin) return
 
     try {
       const response = await fetch(`${config.backendUrl}/api/appointments/${appointmentId}/status`, {
@@ -45,7 +48,7 @@ function Dashboard() {
 
   // Funzione per eliminare un appuntamento
   const deleteAppointment = async (appointmentId) => {
-    if (!confirm('Sei sicuro di voler eliminare questo appuntamento?')) return
+    if (!confirm('Sei sicuro di voler eliminare questo appuntamento?') || !isAdmin) return
 
     const token = localStorage.getItem('token')
     if (!token) return
@@ -73,30 +76,36 @@ function Dashboard() {
       if (!token) return
 
       try {
-        // Fetch users
-        const usersResponse = await fetch(`${config.backendUrl}/api/users`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
+        // Fetch users (solo per admin)
+        if (isAdmin) {
+          const usersResponse = await fetch(`${config.backendUrl}/api/users`, {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          })
+          if (usersResponse.ok) {
+            const usersData = await usersResponse.json()
+            setUsers(usersData.users || [])
           }
-        })
-        if (usersResponse.ok) {
-          const usersData = await usersResponse.json()
-          // Accedi all'array users dalla risposta
-          setUsers(usersData.users || [])
         }
 
-        // Fetch appointments
-        const appointmentsResponse = await fetch(`${config.backendUrl}/api/appointments`, {
+        // Fetch appointments (diverso per admin e utenti normali)
+        const appointmentsEndpoint = isAdmin ? 
+          `${config.backendUrl}/api/appointments` : 
+          `${config.backendUrl}/api/appointments/my`
+        
+        const appointmentsResponse = await fetch(appointmentsEndpoint, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
         })
         if (appointmentsResponse.ok) {
           const appointmentsData = await appointmentsResponse.json()
-          setAppointments(appointmentsData)
+          // Gestisce sia il caso admin (oggetto con appointments) che utente normale (array diretto)
+          setAppointments(isAdmin ? appointmentsData.appointments : appointmentsData)
         }
 
-        // Fetch posts
+        // Fetch posts (visibili a tutti)
         const postsResponse = await fetch(`${config.backendUrl}/api/posts`, {
           headers: {
             'Authorization': `Bearer ${token}`
@@ -111,8 +120,10 @@ function Dashboard() {
       }
     }
 
-    fetchData()
-  }, [])
+    if (user) {
+      fetchData()
+    }
+  }, [user, isAdmin])
 
   const handlePostClick = (postId) => {
     router.push(`/posts/${postId}`)
@@ -136,56 +147,64 @@ function Dashboard() {
   return (
     <Layout>
       <div className="container mx-auto px-6 py-12">
-        <h1 className="text-4xl font-bold mb-8 text-center">Dashboard Admin</h1>
+        <h1 className="text-4xl font-bold mb-8 text-center">
+          {isAdmin ? 'Dashboard Admin' : 'I Miei Appuntamenti'}
+        </h1>
         
-        {/* Sezione Utenti */}
-        <section className="mb-12">
-          <h2 className="text-2xl font-semibold mb-4">Utenti Registrati</h2>
-          <div className="overflow-x-auto bg-white rounded-lg shadow">
-            <table className="w-full table-auto">
-              <thead>
-                <tr className="bg-gray-50">
-                  <th className="px-4 py-2">Nome</th>
-                  <th className="px-4 py-2">Email</th>
-                  <th className="px-4 py-2">Data Registrazione</th>
-                </tr>
-              </thead>
-              <tbody>
-                {users.map((user) => (
-                  <tr key={user._id} className="hover:bg-gray-50">
-                    <td className="border-t px-4 py-2">{user.name}</td>
-                    <td className="border-t px-4 py-2">{user.email}</td>
-                    <td className="border-t px-4 py-2">
-                      {user.createdAt && formatDate(user.createdAt)}
-                    </td>
+        {/* Sezione Utenti (solo per admin) */}
+        {isAdmin && (
+          <section className="mb-12">
+            <h2 className="text-2xl font-semibold mb-4">Utenti Registrati</h2>
+            <div className="overflow-x-auto bg-white rounded-lg shadow">
+              <table className="w-full table-auto">
+                <thead>
+                  <tr className="bg-gray-50">
+                    <th className="px-4 py-2">Nome</th>
+                    <th className="px-4 py-2">Email</th>
+                    <th className="px-4 py-2">Data Registrazione</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
+                </thead>
+                <tbody>
+                  {users.map((user) => (
+                    <tr key={user._id} className="hover:bg-gray-50">
+                      <td className="border-t px-4 py-2">{user.name}</td>
+                      <td className="border-t px-4 py-2">{user.email}</td>
+                      <td className="border-t px-4 py-2">
+                        {user.createdAt && formatDate(user.createdAt)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
 
         {/* Sezione Appuntamenti */}
         <section className="mb-12">
-          <h2 className="text-2xl font-semibold mb-4">Appuntamenti</h2>
+          <h2 className="text-2xl font-semibold mb-4">
+            {isAdmin ? 'Tutti gli Appuntamenti' : 'I Miei Appuntamenti'}
+          </h2>
           <div className="overflow-x-auto bg-white rounded-lg shadow">
             <table className="w-full table-auto">
               <thead>
                 <tr className="bg-gray-50">
-                  <th className="px-4 py-2">Cliente</th>
+                  {isAdmin && <th className="px-4 py-2">Cliente</th>}
                   <th className="px-4 py-2">Servizio</th>
                   <th className="px-4 py-2">Data</th>
                   <th className="px-4 py-2">Ora</th>
                   <th className="px-4 py-2">Stato</th>
-                  <th className="px-4 py-2">Azioni</th>
+                  {isAdmin && <th className="px-4 py-2">Azioni</th>}
                 </tr>
               </thead>
               <tbody>
                 {appointments.map((appointment) => (
                   <tr key={appointment._id} className="hover:bg-gray-50">
-                    <td className="border-t px-4 py-2">
-                      {appointment.userId?.name || 'N/A'}
-                    </td>
+                    {isAdmin && (
+                      <td className="border-t px-4 py-2">
+                        {appointment.userId?.name || 'N/A'}
+                      </td>
+                    )}
                     <td className="border-t px-4 py-2">{appointment.service}</td>
                     <td className="border-t px-4 py-2">
                       {formatDate(appointment.date)}
@@ -196,26 +215,28 @@ function Dashboard() {
                         {appointment.status}
                       </span>
                     </td>
-                    <td className="border-t px-4 py-2">
-                      <div className="flex space-x-2">
-                        <select
-                          className="border rounded px-2 py-1 text-sm"
-                          value={appointment.status}
-                          onChange={(e) => updateAppointmentStatus(appointment._id, e.target.value)}
-                        >
-                          <option value="pending">In attesa</option>
-                          <option value="confirmed">Confermato</option>
-                          <option value="completed">Completato</option>
-                          <option value="cancelled">Cancellato</option>
-                        </select>
-                        <button
-                          onClick={() => deleteAppointment(appointment._id)}
-                          className="text-red-600 hover:text-red-800"
-                        >
-                          Elimina
-                        </button>
-                      </div>
-                    </td>
+                    {isAdmin && (
+                      <td className="border-t px-4 py-2">
+                        <div className="flex space-x-2">
+                          <select
+                            className="border rounded px-2 py-1 text-sm"
+                            value={appointment.status}
+                            onChange={(e) => updateAppointmentStatus(appointment._id, e.target.value)}
+                          >
+                            <option value="pending">In attesa</option>
+                            <option value="confirmed">Confermato</option>
+                            <option value="completed">Completato</option>
+                            <option value="cancelled">Cancellato</option>
+                          </select>
+                          <button
+                            onClick={() => deleteAppointment(appointment._id)}
+                            className="text-red-600 hover:text-red-800"
+                          >
+                            Elimina
+                          </button>
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
@@ -223,33 +244,35 @@ function Dashboard() {
           </div>
         </section>
 
-        {/* Sezione Post */}
-        <section>
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-2xl font-semibold">Post del Blog</h2>
-            <button
-              onClick={handleCreatePost}
-              className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
-            >
-              Crea nuovo post
-            </button>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {posts.map((post) => (
-              <div 
-                key={post._id} 
-                className="bg-white border rounded-lg p-4 cursor-pointer hover:shadow-lg transition-shadow"
-                onClick={() => handlePostClick(post._id)}
+        {/* Sezione Post (solo per admin) */}
+        {isAdmin && (
+          <section>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-2xl font-semibold">Post del Blog</h2>
+              <button
+                onClick={handleCreatePost}
+                className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
               >
-                <h3 className="text-xl font-semibold mb-2">{post.title}</h3>
-                <p className="text-gray-600">{post.content.substring(0, 100)}...</p>
-                <div className="mt-4 text-sm text-gray-500">
-                  {post.createdAt && formatDate(post.createdAt)}
+                Crea nuovo post
+              </button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {posts.map((post) => (
+                <div 
+                  key={post._id} 
+                  className="bg-white border rounded-lg p-4 cursor-pointer hover:shadow-lg transition-shadow"
+                  onClick={() => handlePostClick(post._id)}
+                >
+                  <h3 className="text-xl font-semibold mb-2">{post.title}</h3>
+                  <p className="text-gray-600">{post.content.substring(0, 100)}...</p>
+                  <div className="mt-4 text-sm text-gray-500">
+                    {post.createdAt && formatDate(post.createdAt)}
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        </section>
+              ))}
+            </div>
+          </section>
+        )}
       </div>
     </Layout>
   )

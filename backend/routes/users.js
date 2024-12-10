@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const User = require('../models/User');
 const { protect, isAdmin } = require('../middleware/authMiddleware');
+const bcrypt = require('bcryptjs');
 
 /**
  * @route   GET /api/users
@@ -43,6 +44,84 @@ router.get('/', protect, isAdmin, async (req, res) => {
   } catch (error) {
     console.error('Errore nel recupero degli utenti:', error);
     res.status(500).json({ message: 'Errore nel recupero degli utenti' });
+  }
+});
+
+/**
+ * @route   PUT /api/users/profile
+ * @desc    Aggiorna il profilo dell'utente
+ * @access  Private
+ */
+router.put('/profile', protect, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ message: 'Utente non trovato' });
+    }
+
+    // Aggiorna il nome se fornito
+    if (req.body.name) {
+      if (req.body.name.length < 2) {
+        return res.status(400).json({ message: 'Il nome deve essere di almeno 2 caratteri' });
+      }
+      user.name = req.body.name;
+    }
+
+    // Aggiorna la password se fornita
+    if (req.body.password) {
+      if (req.body.password.length < 6) {
+        return res.status(400).json({ message: 'La password deve essere di almeno 6 caratteri' });
+      }
+      // Hash della nuova password
+      const salt = await bcrypt.genSalt(10);
+      user.password = await bcrypt.hash(req.body.password, salt);
+    }
+
+    // Salva le modifiche
+    await user.save();
+
+    // Restituisci l'utente aggiornato senza la password
+    const updatedUser = await User.findById(user._id).select('-password');
+    res.json({ user: updatedUser });
+  } catch (error) {
+    console.error('Errore nell\'aggiornamento del profilo:', error);
+    res.status(500).json({ message: 'Errore nell\'aggiornamento del profilo' });
+  }
+});
+
+/**
+ * @route   PUT /api/users/:id/role
+ * @desc    Aggiorna il ruolo di un utente
+ * @access  Admin
+ */
+router.put('/:id/role', protect, isAdmin, async (req, res) => {
+  try {
+    const { role } = req.body;
+
+    // Verifica che il ruolo sia valido
+    if (!['user', 'admin'].includes(role)) {
+      return res.status(400).json({ message: 'Ruolo non valido' });
+    }
+
+    // Non permettere all'admin di modificare il proprio ruolo
+    if (req.params.id === req.user.id) {
+      return res.status(400).json({ message: 'Non puoi modificare il tuo ruolo' });
+    }
+
+    const user = await User.findByIdAndUpdate(
+      req.params.id,
+      { role },
+      { new: true }
+    ).select('-password');
+
+    if (!user) {
+      return res.status(404).json({ message: 'Utente non trovato' });
+    }
+
+    res.json(user);
+  } catch (error) {
+    console.error('Errore nell\'aggiornamento del ruolo:', error);
+    res.status(500).json({ message: 'Errore nell\'aggiornamento del ruolo' });
   }
 });
 

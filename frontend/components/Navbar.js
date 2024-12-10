@@ -72,7 +72,7 @@ export default function Navbar() {
                   </Link>
                   {user.role === 'admin' && (
                     <Link
-                      href="/admin/posts"
+                      href="/admin"
                       className="block px-4 py-2 hover:bg-gray-100"
                       onClick={() => setIsDropdownOpen(false)}
                     >
