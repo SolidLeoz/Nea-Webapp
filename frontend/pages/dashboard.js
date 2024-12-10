@@ -10,6 +10,63 @@ function Dashboard() {
   const [posts, setPosts] = useState([])
   const router = useRouter()
 
+  // Funzione per formattare la data
+  const formatDate = (dateString) => {
+    const options = { year: 'numeric', month: 'long', day: 'numeric' }
+    return new Date(dateString).toLocaleDateString('it-IT', options)
+  }
+
+  // Funzione per aggiornare lo stato di un appuntamento
+  const updateAppointmentStatus = async (appointmentId, newStatus) => {
+    const token = localStorage.getItem('token')
+    if (!token) return
+
+    try {
+      const response = await fetch(`${config.backendUrl}/api/appointments/${appointmentId}/status`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ status: newStatus })
+      })
+
+      if (response.ok) {
+        // Aggiorna la lista degli appuntamenti
+        const updatedAppointments = appointments.map(app => 
+          app._id === appointmentId ? { ...app, status: newStatus } : app
+        )
+        setAppointments(updatedAppointments)
+      }
+    } catch (error) {
+      console.error('Errore nell\'aggiornamento dello stato:', error)
+    }
+  }
+
+  // Funzione per eliminare un appuntamento
+  const deleteAppointment = async (appointmentId) => {
+    if (!confirm('Sei sicuro di voler eliminare questo appuntamento?')) return
+
+    const token = localStorage.getItem('token')
+    if (!token) return
+
+    try {
+      const response = await fetch(`${config.backendUrl}/api/appointments/${appointmentId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      if (response.ok) {
+        // Rimuovi l'appuntamento dalla lista
+        setAppointments(appointments.filter(app => app._id !== appointmentId))
+      }
+    } catch (error) {
+      console.error('Errore nell\'eliminazione dell\'appuntamento:', error)
+    }
+  }
+
   useEffect(() => {
     const fetchData = async () => {
       const token = localStorage.getItem('token')
@@ -24,7 +81,8 @@ function Dashboard() {
         })
         if (usersResponse.ok) {
           const usersData = await usersResponse.json()
-          setUsers(usersData)
+          // Accedi all'array users dalla risposta
+          setUsers(usersData.users || [])
         }
 
         // Fetch appointments
@@ -64,28 +122,42 @@ function Dashboard() {
     router.push('/posts/create')
   }
 
+  // Funzione per ottenere il colore dello stato
+  const getStatusColor = (status) => {
+    const colors = {
+      pending: 'bg-yellow-200',
+      confirmed: 'bg-green-200',
+      completed: 'bg-blue-200',
+      cancelled: 'bg-red-200'
+    }
+    return colors[status] || 'bg-gray-200'
+  }
+
   return (
     <Layout>
       <div className="container mx-auto px-6 py-12">
         <h1 className="text-4xl font-bold mb-8 text-center">Dashboard Admin</h1>
         
+        {/* Sezione Utenti */}
         <section className="mb-12">
           <h2 className="text-2xl font-semibold mb-4">Utenti Registrati</h2>
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto bg-white rounded-lg shadow">
             <table className="w-full table-auto">
               <thead>
-                <tr className="bg-gray-200">
-                  <th className="px-4 py-2">ID</th>
+                <tr className="bg-gray-50">
                   <th className="px-4 py-2">Nome</th>
                   <th className="px-4 py-2">Email</th>
+                  <th className="px-4 py-2">Data Registrazione</th>
                 </tr>
               </thead>
               <tbody>
                 {users.map((user) => (
-                  <tr key={user.id}>
-                    <td className="border px-4 py-2">{user.id}</td>
-                    <td className="border px-4 py-2">{user.name}</td>
-                    <td className="border px-4 py-2">{user.email}</td>
+                  <tr key={user._id} className="hover:bg-gray-50">
+                    <td className="border-t px-4 py-2">{user.name}</td>
+                    <td className="border-t px-4 py-2">{user.email}</td>
+                    <td className="border-t px-4 py-2">
+                      {user.createdAt && formatDate(user.createdAt)}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -93,25 +165,57 @@ function Dashboard() {
           </div>
         </section>
 
+        {/* Sezione Appuntamenti */}
         <section className="mb-12">
-          <h2 className="text-2xl font-semibold mb-4">Appuntamenti Fissati</h2>
-          <div className="overflow-x-auto">
+          <h2 className="text-2xl font-semibold mb-4">Appuntamenti</h2>
+          <div className="overflow-x-auto bg-white rounded-lg shadow">
             <table className="w-full table-auto">
               <thead>
-                <tr className="bg-gray-200">
-                  <th className="px-4 py-2">ID</th>
-                  <th className="px-4 py-2">ID Utente</th>
+                <tr className="bg-gray-50">
+                  <th className="px-4 py-2">Cliente</th>
+                  <th className="px-4 py-2">Servizio</th>
                   <th className="px-4 py-2">Data</th>
                   <th className="px-4 py-2">Ora</th>
+                  <th className="px-4 py-2">Stato</th>
+                  <th className="px-4 py-2">Azioni</th>
                 </tr>
               </thead>
               <tbody>
                 {appointments.map((appointment) => (
-                  <tr key={appointment.id}>
-                    <td className="border px-4 py-2">{appointment.id}</td>
-                    <td className="border px-4 py-2">{appointment.userId}</td>
-                    <td className="border px-4 py-2">{appointment.date}</td>
-                    <td className="border px-4 py-2">{appointment.time}</td>
+                  <tr key={appointment._id} className="hover:bg-gray-50">
+                    <td className="border-t px-4 py-2">
+                      {appointment.userId?.name || 'N/A'}
+                    </td>
+                    <td className="border-t px-4 py-2">{appointment.service}</td>
+                    <td className="border-t px-4 py-2">
+                      {formatDate(appointment.date)}
+                    </td>
+                    <td className="border-t px-4 py-2">{appointment.time}</td>
+                    <td className="border-t px-4 py-2">
+                      <span className={`px-2 py-1 rounded-full text-sm ${getStatusColor(appointment.status)}`}>
+                        {appointment.status}
+                      </span>
+                    </td>
+                    <td className="border-t px-4 py-2">
+                      <div className="flex space-x-2">
+                        <select
+                          className="border rounded px-2 py-1 text-sm"
+                          value={appointment.status}
+                          onChange={(e) => updateAppointmentStatus(appointment._id, e.target.value)}
+                        >
+                          <option value="pending">In attesa</option>
+                          <option value="confirmed">Confermato</option>
+                          <option value="completed">Completato</option>
+                          <option value="cancelled">Cancellato</option>
+                        </select>
+                        <button
+                          onClick={() => deleteAppointment(appointment._id)}
+                          className="text-red-600 hover:text-red-800"
+                        >
+                          Elimina
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -119,9 +223,10 @@ function Dashboard() {
           </div>
         </section>
 
+        {/* Sezione Post */}
         <section>
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-2xl font-semibold">Post</h2>
+            <h2 className="text-2xl font-semibold">Post del Blog</h2>
             <button
               onClick={handleCreatePost}
               className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
@@ -133,11 +238,14 @@ function Dashboard() {
             {posts.map((post) => (
               <div 
                 key={post._id} 
-                className="border rounded-lg p-4 cursor-pointer hover:shadow-lg transition-shadow"
+                className="bg-white border rounded-lg p-4 cursor-pointer hover:shadow-lg transition-shadow"
                 onClick={() => handlePostClick(post._id)}
               >
                 <h3 className="text-xl font-semibold mb-2">{post.title}</h3>
                 <p className="text-gray-600">{post.content.substring(0, 100)}...</p>
+                <div className="mt-4 text-sm text-gray-500">
+                  {post.createdAt && formatDate(post.createdAt)}
+                </div>
               </div>
             ))}
           </div>
