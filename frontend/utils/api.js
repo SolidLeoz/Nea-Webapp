@@ -141,6 +141,10 @@ export async function verifyAdmin() {
   }
 }
 
+
+export const createPost = api.createPost;
+export const updatePost = api.updatePost;
+export const deletePost = api.deletePost;
 // Esporta la funzione fetchPosts direttamente per compatibilità
 export const fetchPosts = api.fetchPosts;
 
